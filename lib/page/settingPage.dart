@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:badges/badges.dart';
@@ -16,6 +17,8 @@ class Setting extends StatefulWidget {
 
 class _SettingState extends State<Setting> {
   late BluetoothCharacteristic targetChar;
+  late StreamSubscription<List<int>> streamSubscription;
+  List<DropdownMenuItem<String>>? dropDownMenuItems;
   TextEditingController valueController = TextEditingController();
   final ssidController = TextEditingController();
   final passController = TextEditingController();
@@ -30,11 +33,30 @@ class _SettingState extends State<Setting> {
   String link = '';
   String? selectedValue;
   List<String> options = [];
+  bool play = false;
+  bool power = false;
+  bool lamp = false;
+  bool stream = false;
+  bool music = false;
+  bool retry = false;
+  Timer? timer;
+  bool stopTimer = false;
+  //! Color MasBro
+  final Color _baseColor = Color.fromRGBO(42, 50, 75, 1);
+  final Color baseColor12 = Color.fromRGBO(42, 50, 75, 0.1);
+  final Color textColor = Color.fromRGBO(42, 50, 75, 0.8);
+  final Color bgColor = Color.fromRGBO(252, 252, 252, 1);
+  final Color subText = Color.fromRGBO(0, 0, 0, 0.56);
+  final Color disableBaseColor = Color.fromRGBO(216, 226, 220, 1);
+  final Color disableBaseColor12 = Color.fromRGBO(0, 0, 0, 0.56);
+  final Color fieldBgColor = Color.fromRGBO(221, 225, 234, 1);
+  final Color lampOn = Color.fromRGBO(249, 203, 64, 1);
+  final Color powerOn = Color.fromRGBO(36, 169, 108, 1);
+  final Color redColor = Color.fromRGBO(214, 71, 51, 1);
 
   @override
   void initState() {
     discoverTes();
-    // receiveData();
     super.initState();
   }
 
@@ -48,6 +70,12 @@ class _SettingState extends State<Setting> {
             setState(() {});
             char.value.listen((value) {
               setState(() {
+                dropDownMenuItems = value
+                    .map((value) => DropdownMenuItem(
+                          value: value.toString(),
+                          child: Text(value.toString()),
+                        ))
+                    .toList();
                 String drop = utf8.decode(value).trim();
                 options.add(drop.trim());
               });
@@ -59,6 +87,16 @@ class _SettingState extends State<Setting> {
         });
       }
     });
+  }
+
+  Future<void> reading() async {
+    timer = Timer.periodic(Duration(seconds: 2), (timer) {
+      receiveData();
+      if (stopTimer) {
+        timer.cancel();
+      }
+    });
+    await Future.delayed(Duration(seconds: 3));
   }
 
   void sendJsonToEsp() {
@@ -84,7 +122,7 @@ class _SettingState extends State<Setting> {
 
   sendJsonString(String jsonString) async {
     Uint8List json = utf8.encode(jsonString) as Uint8List;
-    targetChar.write(json, withoutResponse: true);
+    targetChar.write(json);
   }
 
   void addCounter(String pluses) {
@@ -117,7 +155,14 @@ class _SettingState extends State<Setting> {
     }
   }
 
-  receiveData() async {
+  Future<void> sendOnMessageToBluetooth(String message) async {
+    writeData('8');
+    await Future.delayed(Duration(seconds: 3));
+    List<int> data = utf8.encode(message);
+    targetChar.write(data);
+  }
+
+  Future<void> receiveData() async {
     try {
       List<int> value = await targetChar.read();
       receive = utf8.decode(value).trim();
@@ -166,6 +211,190 @@ class _SettingState extends State<Setting> {
         });
   }
 
+  void openLoading(BuildContext context, [bool mounted = true]) async {
+    if (stream || music) {
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) {
+            return Dialog(
+              // The background color
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    // The loading indicator
+                    CircularProgressIndicator(),
+                    SizedBox(
+                      height: 15,
+                    ),
+                    // Some text
+                    Text('Loading...')
+                  ],
+                ),
+              ),
+            );
+          });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    }
+  }
+
+  Widget SliderStream(context) => Builder(builder: (context) {
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Stream',
+                  style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor),
+                ),
+                Transform.scale(
+                  scale: 1.3,
+                  child: Switch(
+                    value: stream,
+                    // value: true,
+                    onChanged: (value) {
+                      setState(() {
+                        stream = value;
+                      });
+                      openLoading(context);
+                      if (stream == true) {
+                        sendOnMessageToBluetooth('5\n');
+                      } else if (stream == false) {
+                        writeData('3\n');
+                      }
+                    },
+                    activeColor: _baseColor,
+                    inactiveTrackColor: Color.fromRGBO(78, 78, 78, 1),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              height: 50,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon((Icons.noise_aware_sharp)),
+                  IconButton(
+                    onPressed: () {
+                      addCounter(counter.toStringAsFixed(1));
+                    },
+                    iconSize: 30,
+                    icon: Icon(
+                      Icons.add_circle_rounded,
+                      color: _baseColor,
+                    ),
+                  ),
+                  Slider(
+                      value: counter,
+                      min: 0,
+                      max: 1.0,
+                      divisions: 100,
+                      activeColor: _baseColor,
+                      inactiveColor: bgColor,
+                      onChanged: ((value) {})),
+                  IconButton(
+                    onPressed: () {
+                      subtractCounter(counter.toStringAsFixed(1));
+                    },
+                    icon: const Icon(
+                      Icons.exposure_minus_2_rounded,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
+        );
+      });
+
+  Widget SliderPlay(context) => Builder(builder: (context) {
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Music',
+                  style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor),
+                ),
+                Transform.scale(
+                  scale: 1.3,
+                  child: Switch(
+                    value: music,
+                    // value: true,
+                    onChanged: (value) {
+                      setState(() {
+                        music = value;
+                      });
+                      openLoading(context);
+                      if (music == true) {
+                        sendOnMessageToBluetooth('5\n');
+                      } else if (music == false) {
+                        writeData('3\n');
+                      }
+                    },
+                    activeColor: _baseColor,
+                    inactiveTrackColor: Color.fromRGBO(78, 78, 78, 1),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              height: 50,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon((Icons.noise_aware_sharp)),
+                  IconButton(
+                    onPressed: () {
+                      addCounter(counter.toStringAsFixed(1));
+                    },
+                    iconSize: 30,
+                    icon: Icon(
+                      Icons.add_circle_rounded,
+                      color: _baseColor,
+                    ),
+                  ),
+                  Slider(
+                      value: counter,
+                      min: 0,
+                      max: 1.0,
+                      divisions: 100,
+                      activeColor: _baseColor,
+                      inactiveColor: bgColor,
+                      onChanged: ((value) {})),
+                  IconButton(
+                    onPressed: () {
+                      subtractCounter(counter.toStringAsFixed(1));
+                    },
+                    icon: const Icon(
+                      Icons.exposure_minus_2_rounded,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
+        );
+      });
+
   Future<void> displayInstall(BuildContext context) async {
     return showDialog(
         context: context,
@@ -212,38 +441,88 @@ class _SettingState extends State<Setting> {
 
   @override
   Widget build(BuildContext context) {
-    final Color _baseColor = Color.fromRGBO(42, 50, 75, 1);
-    final Color baseColor12 = Color.fromRGBO(42, 50, 75, 0.1);
-    final Color textColor = Color.fromRGBO(42, 50, 75, 0.8);
-    final Color bgColor = Color.fromRGBO(252, 252, 252, 1);
-    final Color subText = Color.fromRGBO(0, 0, 0, 0.56);
-    final Color disableBaseColor = Color.fromRGBO(216, 226, 220, 1);
-    final Color disableBaseColor12 = Color.fromRGBO(0, 0, 0, 0.56);
-    final Color fieldBgColor = Color.fromRGBO(221, 225, 234, 1);
-    final Color lampOn = Color.fromRGBO(249, 203, 64, 1);
-    final Color powerOn = Color.fromRGBO(36, 169, 108, 1);
-    final Color redColor = Color.fromRGBO(214, 71, 51, 1);
-
-    bool power = false;
-    bool lamp = false;
-    bool retry = false;
-
-    bool play = false;
-    playPaused() {
+    void playPaused() {
       if (play == true) {
         writeData('3\n');
-        setState(() {
-          play = false; // device on
-        });
-        debugPrint('$play');
-      } else if (play == false) {
-        writeData("4\n");
-        setState(() {
-          play = true; // device on
-        });
-        debugPrint('$play');
+      } else {
+        writeData('4\n');
       }
+      setState(() {
+        play = !play;
+      });
+      debugPrint('$play');
     }
+
+    void lampStats() {
+      if (lamp == true) {
+        writeData('lagu.mp3\n');
+      } else {
+        writeData('0\n');
+      }
+      setState(() {
+        lamp = !lamp;
+      });
+      debugPrint('$lamp');
+    }
+
+Future showAlertDelete() => showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            backgroundColor: bgColor,
+            title: Text("Music"),
+            content: Container(
+                height: MediaQuery.of(context).size.width / 7,
+                width: MediaQuery.of(context).size.width / 1.5,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextFormField(
+                      style: GoogleFonts.inter(
+                          textStyle: TextStyle(color: textColor)),
+                      decoration: InputDecoration(
+                        enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _baseColor)),
+                        isDense: true,
+                        filled: true,
+                        fillColor: baseColor12,
+                        labelText: 'Musix',
+                        hintText: 'Insert file name..',
+                        suffixIcon: Icon(Icons.delete),
+                      ),
+                      controller: valueController,
+                      onChanged: (value) {
+                        jsonString = value;
+                      },
+                    ),
+                  ],
+                )),
+            actions: <Widget>[
+              ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _baseColor,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      Navigator.pop(context);
+                    });
+                    valueController.clear();
+                  },
+                  child: const Icon(Icons.clear)),
+              ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _baseColor,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
+                  ),
+                  onPressed: sendConvert,
+                  child: const Icon(Icons.subdirectory_arrow_left)),
+            ],
+          ));
 
     return LayoutBuilder(builder: (context, constraints) {
       final height = constraints.maxHeight;
@@ -260,14 +539,18 @@ class _SettingState extends State<Setting> {
               icon: Icon(Icons.power_settings_new),
               iconSize: (width * 0.1),
               tooltip: "On/Off",
-              onPressed: () {},
+              onPressed: () {
+                setState(() {
+                  power = !power;
+                });
+              },
             ),
             IconButton(
                 icon: Icon(Icons.lightbulb),
                 color: lamp ? lampOn : fieldBgColor,
                 iconSize: (width * 0.1),
                 tooltip: "Save Todo and Retrun to List",
-                onPressed: () {}),
+                onPressed: lampStats),
           ],
         ),
         body: Container(
@@ -283,24 +566,20 @@ class _SettingState extends State<Setting> {
                       children: [
                         Container(
                           height: width * 0.11,
-                          child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _baseColor,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                              onPressed: () async {
-                                await widget.device.disconnect();
-                                Navigator.pop(context);
-                              },
-                              child: Text(
-                                'Disconnect',
-                                style: GoogleFonts.inter(
-                                    textStyle: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                )),
-                              )),
+                          child: IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor: _baseColor,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              await widget.device.disconnect();
+                              Navigator.pop(context);
+                            },
+                            icon: const Icon(
+                              Icons.bluetooth_disabled,
+                            ),
+                          ),
                         ),
                         Badge(
                           animationType: BadgeAnimationType.fade,
@@ -317,7 +596,9 @@ class _SettingState extends State<Setting> {
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15)),
                               ),
-                              onPressed: () {},
+                              onPressed: () {
+                                receiveData();
+                              },
                               child: Icon(
                                 Icons.mail_rounded,
                                 color: bgColor,
@@ -337,49 +618,43 @@ class _SettingState extends State<Setting> {
                       Expanded(
                           child: Container(
                         margin: EdgeInsets.symmetric(
-                            horizontal: (constraints.maxWidth * 0.03)),
+                            horizontal: (constraints.maxWidth * 0.01)),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(15),
                           child: Container(
                             color: baseColor12,
                             child: Column(
                               children: [
-                                Container(
-                                  margin: EdgeInsets.only(
-                                      bottom: (constraints.maxWidth * 0.04)),
-                                  color: _baseColor,
-                                  height: 20,
-                                ),
                                 Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Container(
-                                      margin: EdgeInsets.symmetric(
-                                        horizontal:
-                                            (constraints.maxWidth * 0.05),
-                                      ),
-                                      child: Text(
-                                        "Settings",
-                                        style: GoogleFonts.inter(
-                                            textStyle: TextStyle(
-                                                color: textColor,
-                                                fontSize: 22,
-                                                fontWeight: FontWeight.bold)),
-                                      ),
-                                    ),
-                                    Container(
                                       margin: EdgeInsets.only(
-                                          top: (constraints.maxWidth * 0.01)),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          // sliderNoiseWidget(context, controller),
-                                          // sliderMusicWidget(context, controller)
-                                        ],
-                                      ),
-                                    )
+                                          bottom:
+                                              (constraints.maxWidth * 0.04)),
+                                      color: _baseColor,
+                                      height: 20,
+                                    ),
+                                    Text(
+                                      "Settings",
+                                      style: GoogleFonts.inter(
+                                          textStyle: TextStyle(
+                                              color: textColor,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold)),
+                                    ),
                                   ],
+                                ),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: (width * 0.05)),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      SliderStream(context),
+                                      SliderPlay(context)
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -410,7 +685,7 @@ class _SettingState extends State<Setting> {
                             child: Container(
                               padding: EdgeInsets.all((width * 0.04)),
                               height: width / 2.5,
-                              width: width / 1.2,
+                              width: width / 1.19,
                               color: baseColor12,
                               child: Column(
                                 mainAxisAlignment:
@@ -437,17 +712,17 @@ class _SettingState extends State<Setting> {
                                       style: GoogleFonts.inter(
                                           textStyle: TextStyle(
                                               color: bgColor, fontSize: 16)),
-                                      items: options.map((value) {
+                                      items: options
+                                          .where(
+                                              (value) => value.contains('.mp3'))
+                                          .map((value) {
                                         return DropdownMenuItem(
-                                          value: value.trim(),
-                                          child: Text(value.trim()),
-                                        );
+                                            value: value.trim(),
+                                            child: Text(value.trim()));
                                       }).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          selectedValue = value;
-                                        });
-                                      },
+                                      onChanged: (value) => setState(() {
+                                        selectedValue = value;
+                                      }),
                                       icon: Icon(Icons.arrow_drop_down_rounded),
                                       iconEnabledColor: bgColor,
                                       iconSize: 42,
@@ -468,7 +743,12 @@ class _SettingState extends State<Setting> {
                                                 borderRadius:
                                                     BorderRadius.circular(15)),
                                           ),
-                                          onPressed: () {},
+                                          onPressed: () {
+                                            writeData('R\n');
+                                            setState(() {
+                                              retry = !retry;
+                                            });
+                                          },
                                           child: Icon(
                                             Icons.repeat_one_rounded,
                                             color: retry ? powerOn : bgColor,
@@ -483,22 +763,26 @@ class _SettingState extends State<Setting> {
                                           IconButton(
                                               color: _baseColor,
                                               iconSize: width * 0.1,
-                                              onPressed: () {},
+                                              onPressed: () {
+                                                writeData('P\n');
+                                              },
                                               icon: Icon(
                                                   Icons.skip_previous_rounded)),
+                                          IconButton(
+                                            color: _baseColor,
+                                            iconSize: width * 0.1,
+                                            icon: play
+                                                ? Icon(Icons.stop_rounded)
+                                                : Icon(
+                                                    Icons.play_arrow_rounded),
+                                            onPressed: playPaused,
+                                          ),
                                           IconButton(
                                               color: _baseColor,
                                               iconSize: width * 0.1,
                                               onPressed: () {
-                                                playPaused();
+                                                writeData('N\n');
                                               },
-                                              icon: Icon(play == false
-                                                  ? Icons.pause_rounded
-                                                  : Icons.play_arrow_rounded)),
-                                          IconButton(
-                                              color: _baseColor,
-                                              iconSize: width * 0.1,
-                                              onPressed: () {},
                                               icon:
                                                   Icon(Icons.skip_next_rounded))
                                         ],
@@ -513,7 +797,7 @@ class _SettingState extends State<Setting> {
                                                 borderRadius:
                                                     BorderRadius.circular(15)),
                                           ),
-                                          onPressed: sendConvert,
+                                          onPressed: showAlertDelete,
                                           child: Icon(
                                             Icons.send_rounded,
                                             color: bgColor,
@@ -542,7 +826,9 @@ class _SettingState extends State<Setting> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15)),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              displayInput(context);
+                            },
                             child: Icon(
                               Icons.delete,
                               color: redColor,
@@ -558,7 +844,9 @@ class _SettingState extends State<Setting> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15)),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              displayInstall(context);
+                            },
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               mainAxisAlignment: MainAxisAlignment.center,
