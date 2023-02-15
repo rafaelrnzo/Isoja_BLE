@@ -1,876 +1,472 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
-import 'package:badges/badges.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue/flutter_blue.dart';
+import 'package:flutter/src/widgets/container.dart';
+import 'package:flutter/src/widgets/framework.dart';
+import 'package:flutter_isoja/global/color.dart';
+import 'package:flutter_isoja/widget/widgetSetting.dart';
+import 'package:flutter_switch/flutter_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lite_rolling_switch/lite_rolling_switch.dart';
 
 class Setting extends StatefulWidget {
-  Setting({Key? key, required this.device}) : super(key: key);
-
-  final BluetoothDevice device;
+  const Setting({super.key});
 
   @override
   State<Setting> createState() => _SettingState();
 }
 
+//! boolean
+bool switchStatus = false;
+bool switchStatusPlay = false;
+
+//!double
+double sliderValue = 0.0;
+
+final List<String> imageList = [
+  "https://www.setaswall.com/wp-content/uploads/2018/08/Spiderman-Wallpaper-76-1280x720.jpg",
+  "https://lh3.googleusercontent.com/proxy/yL2FmQfZA79S5eIDza9MH2NjKGIKWPOGRHxHdYwiNPcYDW26YmK6qnP01ZDLsBENZpiADc1ohkj3LzVjrwoX8Pb-crT6MYZb3Jp9gy3ZrlET_yvoFS0qtUHLq4DtVPcqIdxPiNWI_j08omBVACv-YJc",
+  "https://images.hdqwalls.com/download/spiderman-peter-parker-standing-on-a-rooftop-ix-1280x720.jpg",
+  "https://images.wallpapersden.com/image/download/peter-parker-spider-man-homecoming_bGhsa22UmZqaraWkpJRmZ21lrWxnZQ.jpg",
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvUgui-suS8DgaljlONNuhy4vPUsC_UKvxJQ&usqp=CAU",
+];
+
+//!Color Pallate Massbro
 class _SettingState extends State<Setting> {
-  late BluetoothCharacteristic targetChar;
-  late StreamSubscription<List<int>> streamSubscription;
-  List<DropdownMenuItem<String>>? dropDownMenuItems;
-  TextEditingController valueController = TextEditingController();
-  final ssidController = TextEditingController();
-  final passController = TextEditingController();
-  final linkController = TextEditingController();
-  double counter = 0;
-  String text = '';
-  String receive = '';
-  String value = '';
-  String jsonString = '';
-  String ssid = '';
-  String pass = '';
-  String link = '';
-  String? selectedValue;
-  List<String> options = [];
-  bool play = false;
-  bool power = false;
-  bool lamp = false;
-  bool stream = false;
-  bool music = false;
-  bool retry = false;
-  Timer? timer;
-  bool stopTimer = false;
-  //! Color MasBro
-  final Color _baseColor = Color.fromRGBO(42, 50, 75, 1);
-  final Color baseColor12 = Color.fromRGBO(42, 50, 75, 0.1);
-  final Color textColor = Color.fromRGBO(42, 50, 75, 0.8);
-  final Color bgColor = Color.fromRGBO(252, 252, 252, 1);
-  final Color subText = Color.fromRGBO(0, 0, 0, 0.56);
-  final Color disableBaseColor = Color.fromRGBO(216, 226, 220, 1);
-  final Color disableBaseColor12 = Color.fromRGBO(0, 0, 0, 0.56);
-  final Color fieldBgColor = Color.fromRGBO(221, 225, 234, 1);
-  final Color lampOn = Color.fromRGBO(249, 203, 64, 1);
-  final Color powerOn = Color.fromRGBO(36, 169, 108, 1);
-  final Color redColor = Color.fromRGBO(214, 71, 51, 1);
-
-  @override
-  void initState() {
-    discoverTes();
-    super.initState();
-  }
-
-  discoverTes() async {
-    List<BluetoothService> services = await widget.device.discoverServices();
-    services.forEach((service) {
-      if (service.uuid.toString() == service.uuid.toString()) {
-        service.characteristics.forEach((char) async {
-          if (char.uuid.toString() == char.uuid.toString()) {
-            targetChar = char;
-            setState(() {});
-            char.value.listen((value) {
-              setState(() {
-                dropDownMenuItems = value
-                    .map((value) => DropdownMenuItem(
-                          value: value.toString(),
-                          child: Text(value.toString()),
-                        ))
-                    .toList();
-                String drop = utf8.decode(value).trim();
-                options.add(drop.trim());
-              });
-              // receiveData();
-              setState(() {});
-            });
-            setState(() {});
-          }
-        });
-      }
-    });
-  }
-
-  Future<void> reading() async {
-    timer = Timer.periodic(Duration(seconds: 2), (timer) {
-      receiveData();
-      if (stopTimer) {
-        timer.cancel();
-      }
-    });
-    await Future.delayed(Duration(seconds: 3));
-  }
-
-  void sendJsonToEsp() {
-    value = valueController.text;
-    convertInputToJson();
-    Navigator.pop(context);
-    sendJsonString(jsonString);
-    valueController.clear();
-  }
-
-  void sendWifi() {
-    ssid = ssidController.text;
-    pass = passController.text;
-    link = linkController.text;
-    convertWifi();
-    Navigator.pop(context);
-    sendJsonString(jsonString);
-    ssidController.clear();
-    passController.clear();
-    linkController.clear();
-    setState(() {});
-  }
-
-  sendJsonString(String jsonString) async {
-    Uint8List json = utf8.encode(jsonString) as Uint8List;
-    targetChar.write(json);
-  }
-
-  void addCounter(String pluses) {
-    if (counter + 0.1 <= 1.0) {
-      setState(() {
-        counter += 0.1;
-      });
-    }
-    Uint8List plus = utf8.encode(pluses) as Uint8List;
-    targetChar.write(plus, withoutResponse: true);
-  }
-
-  void subtractCounter(String mineses) {
-    if (counter - 0.1 >= 0.0) {
-      setState(() {
-        counter -= 0.1;
-      });
-    }
-    Uint8List mines = utf8.encode(mineses) as Uint8List;
-    targetChar.write(mines, withoutResponse: true);
-  }
-
-  writeData(String data) {
-    try {
-      List<int> bytes = utf8.encode(data);
-      targetChar.write(bytes, withoutResponse: true);
-      setState(() {});
-    } catch (e) {
-      debugPrint('$e');
-    }
-  }
-
-  Future<void> sendOnMessageToBluetooth(String message) async {
-    writeData('8');
-    await Future.delayed(Duration(seconds: 3));
-    List<int> data = utf8.encode(message);
-    targetChar.write(data);
-  }
-
-  Future<void> receiveData() async {
-    try {
-      List<int> value = await targetChar.read();
-      receive = utf8.decode(value).trim();
-      setState(() {});
-    } catch (e) {
-      debugPrint('$e');
-    }
-  }
-
-  void convertInputToJson() {
-    value = value.replaceAll(new RegExp(r'\s'), "");
-    jsonString = '{"DLT":"$value"}';
-  }
-
-  void convertWifi() {
-    ssid = ssid.replaceAll(new RegExp(r'\s'), "");
-    pass = pass.replaceAll(new RegExp(r'\s'), "");
-    link = link.replaceAll(new RegExp(r'\s'), "");
-    jsonString = '{"S":"$ssid"},{"PW":"$pass"},{"f":"$link"}';
-  }
-
-  sendConvert() {
-    List<int> json = utf8.encode('/${selectedValue?.trim()}');
-    targetChar.write(json, withoutResponse: true);
-  }
-
-  Future<void> displayInput(BuildContext context) async {
-    return showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Write title'),
-            content: TextField(
-              onChanged: (value) {
-                setState(() {
-                  value = jsonString.trim();
-                });
-              },
-              controller: valueController,
-              decoration: InputDecoration(hintText: "title"),
-            ),
-            actions: <Widget>[
-              ElevatedButton(child: Text('OK'), onPressed: sendJsonToEsp),
-            ],
-          );
-        });
-  }
-
-  void openLoading(BuildContext context, [bool mounted = true]) async {
-    if (stream || music) {
-      showDialog(
-          barrierDismissible: false,
-          context: context,
-          builder: (_) {
-            return Dialog(
-              // The background color
-              backgroundColor: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    // The loading indicator
-                    CircularProgressIndicator(),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    // Some text
-                    Text('Loading...')
-                  ],
-                ),
-              ),
-            );
-          });
-      await Future.delayed(const Duration(seconds: 3));
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    }
-  }
-
-  Widget SliderStream(context) => Builder(builder: (context) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Stream',
-                  style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor),
-                ),
-                Transform.scale(
-                  scale: 1.3,
-                  child: Switch(
-                    value: stream,
-                    // value: true,
-                    onChanged: (value) {
-                      setState(() {
-                        stream = value;
-                      });
-                      openLoading(context);
-                      if (stream == true) {
-                        sendOnMessageToBluetooth('5\n');
-                      } else if (stream == false) {
-                        writeData('3\n');
-                      }
-                    },
-                    activeColor: _baseColor,
-                    inactiveTrackColor: Color.fromRGBO(78, 78, 78, 1),
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              height: 50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon((Icons.noise_aware_sharp)),
-                  IconButton(
-                    onPressed: () {
-                      addCounter(counter.toStringAsFixed(1));
-                    },
-                    iconSize: 30,
-                    icon: Icon(
-                      Icons.add_circle_rounded,
-                      color: _baseColor,
-                    ),
-                  ),
-                  Slider(
-                      value: counter,
-                      min: 0,
-                      max: 1.0,
-                      divisions: 100,
-                      activeColor: _baseColor,
-                      inactiveColor: bgColor,
-                      onChanged: ((value) {})),
-                  IconButton(
-                    onPressed: () {
-                      subtractCounter(counter.toStringAsFixed(1));
-                    },
-                    icon: const Icon(
-                      Icons.exposure_minus_2_rounded,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          ],
-        );
-      });
-
-  Widget SliderPlay(context) => Builder(builder: (context) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Music',
-                  style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor),
-                ),
-                Transform.scale(
-                  scale: 1.3,
-                  child: Switch(
-                    value: music,
-                    // value: true,
-                    onChanged: (value) {
-                      setState(() {
-                        music = value;
-                      });
-                      openLoading(context);
-                      if (music == true) {
-                        sendOnMessageToBluetooth('5\n');
-                      } else if (music == false) {
-                        writeData('3\n');
-                      }
-                    },
-                    activeColor: _baseColor,
-                    inactiveTrackColor: Color.fromRGBO(78, 78, 78, 1),
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              height: 50,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon((Icons.noise_aware_sharp)),
-                  IconButton(
-                    onPressed: () {
-                      addCounter(counter.toStringAsFixed(1));
-                    },
-                    iconSize: 30,
-                    icon: Icon(
-                      Icons.add_circle_rounded,
-                      color: _baseColor,
-                    ),
-                  ),
-                  Slider(
-                      value: counter,
-                      min: 0,
-                      max: 1.0,
-                      divisions: 100,
-                      activeColor: _baseColor,
-                      inactiveColor: bgColor,
-                      onChanged: ((value) {})),
-                  IconButton(
-                    onPressed: () {
-                      subtractCounter(counter.toStringAsFixed(1));
-                    },
-                    icon: const Icon(
-                      Icons.exposure_minus_2_rounded,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          ],
-        );
-      });
-
-  Future<void> displayInstall(BuildContext context) async {
-    return showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text('Download'),
-            content: Column(
-              children: [
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      value = jsonString.trim();
-                    });
-                  },
-                  controller: ssidController,
-                  decoration: InputDecoration(hintText: "ssid"),
-                ),
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      value = jsonString.trim();
-                    });
-                  },
-                  controller: passController,
-                  decoration: InputDecoration(hintText: "pass"),
-                ),
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      value = jsonString.trim();
-                    });
-                  },
-                  controller: linkController,
-                  decoration: InputDecoration(hintText: "link"),
-                ),
-              ],
-            ),
-            actions: <Widget>[
-              ElevatedButton(child: Text('OK'), onPressed: sendWifi),
-            ],
-          );
-        });
-  }
-
   @override
   Widget build(BuildContext context) {
-    void playPaused() {
-      if (play == true) {
-        writeData('3\n');
-      } else {
-        writeData('4\n');
-      }
-      setState(() {
-        play = !play;
-      });
-      debugPrint('$play');
-    }
-
-    void lampStats() {
-      if (lamp == true) {
-        writeData('lagu.mp3\n');
-      } else {
-        writeData('0\n');
-      }
-      setState(() {
-        lamp = !lamp;
-      });
-      debugPrint('$lamp');
-    }
-
-Future showAlertDelete() => showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (context) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            backgroundColor: bgColor,
-            title: Text("Music"),
-            content: Container(
-                height: MediaQuery.of(context).size.width / 7,
-                width: MediaQuery.of(context).size.width / 1.5,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appbarContent(context, height, width),
+      // ignore: avoid_unnecessary_containers
+      body: Container(
+        margin: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Expanded(
+                flex: 2,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextFormField(
-                      style: GoogleFonts.inter(
-                          textStyle: TextStyle(color: textColor)),
-                      decoration: InputDecoration(
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: _baseColor)),
-                        isDense: true,
-                        filled: true,
-                        fillColor: baseColor12,
-                        labelText: 'Musix',
-                        hintText: 'Insert file name..',
-                        suffixIcon: Icon(Icons.delete),
-                      ),
-                      controller: valueController,
-                      onChanged: (value) {
-                        jsonString = value;
-                      },
-                    ),
+                    InkWell(
+                        onTap: () {
+                          setState(() {
+                            switchStatus = !switchStatus;
+                            switchStatusPlay = false;
+                          });
+                        },
+                        child: cardNoise(width)),
+                    InkWell(
+                        onTap: () {
+                          setState(() {
+                            switchStatusPlay = !switchStatusPlay;
+                            switchStatus = false;
+                          });
+                        },
+                        child: cardPlayMusic(width)),
                   ],
                 )),
-            actions: <Widget>[
-              ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _baseColor,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4)),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      Navigator.pop(context);
-                    });
-                    valueController.clear();
-                  },
-                  child: const Icon(Icons.clear)),
-              ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _baseColor,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4)),
-                  ),
-                  onPressed: sendConvert,
-                  child: const Icon(Icons.subdirectory_arrow_left)),
-            ],
-          ));
-
-    return LayoutBuilder(builder: (context, constraints) {
-      final height = constraints.maxHeight;
-      final width = constraints.maxWidth;
-      return Scaffold(
-        backgroundColor: bgColor,
-        appBar: AppBar(
-          toolbarHeight: (constraints.maxHeight * 0.1),
-          backgroundColor: _baseColor,
-          title: Text(widget.device.name),
-          actions: <Widget>[
-            IconButton(
-              color: power ? powerOn : disableBaseColor,
-              icon: Icon(Icons.power_settings_new),
-              iconSize: (width * 0.1),
-              tooltip: "On/Off",
-              onPressed: () {
-                setState(() {
-                  power = !power;
-                });
-              },
+            const Divider(
+              height: 16,
+              color: Colors.transparent,
             ),
-            IconButton(
-                icon: Icon(Icons.lightbulb),
-                color: lamp ? lampOn : fieldBgColor,
-                iconSize: (width * 0.1),
-                tooltip: "Save Todo and Retrun to List",
-                onPressed: lampStats),
-          ],
-        ),
-        body: Container(
-            padding: EdgeInsets.all(10),
-            child: Column(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          height: width * 0.11,
-                          child: IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor: _baseColor,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
-                            onPressed: () async {
-                              await widget.device.disconnect();
-                              Navigator.pop(context);
-                            },
-                            icon: const Icon(
-                              Icons.bluetooth_disabled,
-                            ),
-                          ),
-                        ),
-                        Badge(
-                          animationType: BadgeAnimationType.fade,
-                          padding: const EdgeInsets.all(10.0),
-                          badgeContent:
-                              Text('1', style: TextStyle(color: Colors.white)),
-                          badgeColor: redColor,
-                          toAnimate: true,
-                          child: Container(
-                            height: (height * 0.060),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _baseColor,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15)),
-                              ),
-                              onPressed: () {
-                                receiveData();
-                              },
-                              child: Icon(
-                                Icons.mail_rounded,
-                                color: bgColor,
-                                size: (width * 0.08),
-                              ),
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 8,
-                  child: Column(
+            Expanded(
+                flex: 2,
+                child: Container(
+                  child: cardVolume(width),
+                )),
+            const Divider(
+              height: 30,
+              color: Colors.transparent,
+            ),
+            Expanded(
+                flex: 1,
+                // ignore: avoid_unnecessary_containers
+                child: Container(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Expanded(
-                          child: Container(
-                        margin: EdgeInsets.symmetric(
-                            horizontal: (constraints.maxWidth * 0.01)),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: Container(
-                            color: baseColor12,
-                            child: Column(
-                              children: [
-                                Column(
-                                  children: [
-                                    Container(
-                                      margin: EdgeInsets.only(
-                                          bottom:
-                                              (constraints.maxWidth * 0.04)),
-                                      color: _baseColor,
-                                      height: 20,
+                      buttonRepeat(width),
+                      buttonUploadd(width: width),
+                      buttonDelete(width: width),
+                    ],
+                  ),
+                )),
+            const Divider(
+              height: 10,
+              color: Colors.transparent,
+            ),
+            Expanded(
+                flex: 3,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: Card(
+                    color: disable,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 10,
+                    child: SizedBox(
+                      width: width,
+                      child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  width: width,
+                                  height: width / 5,
+                                  child: CarouselSlider(
+                                    options: CarouselOptions(
+                                      enlargeCenterPage: true,
+                                      enableInfiniteScroll: false,
+                                      autoPlay: false,
                                     ),
-                                    Text(
-                                      "Settings",
-                                      style: GoogleFonts.inter(
-                                          textStyle: TextStyle(
-                                              color: textColor,
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.bold)),
+                                    items: <Widget>[
+                                      songList(width: width),
+                                      songList(width: width),
+                                      songList(width: width),
+                                      
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    InkWell(
+                                      borderRadius: const BorderRadius.all(
+                                        Radius.circular(100.0),
+                                      ),
+                                      child: Icon(Icons.skip_previous,
+                                          size: width * 0.15, color: base),
+                                      onTap: () {},
+                                    ),
+                                    InkWell(
+                                      borderRadius: const BorderRadius.all(
+                                        Radius.circular(100.0),
+                                      ),
+                                      child: Icon(
+                                          Icons.play_circle_fill_rounded,
+                                          size: width * 0.18,
+                                          color: base),
+                                      onTap: () {},
+                                    ),
+                                    InkWell(
+                                      borderRadius: const BorderRadius.all(
+                                        Radius.circular(100.0),
+                                      ),
+                                      child: Icon(Icons.skip_next,
+                                          size: width * 0.15, color: base),
+                                      onTap: () {},
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: (width * 0.05)),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      SliderStream(context),
-                                      SliderPlay(context)
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )),
-                    ],
-                  ),
-                ),
-                Expanded(
-                    flex: 8,
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Text(
-                            "Play Music",
-                            textAlign: TextAlign.start,
-                            style: GoogleFonts.inter(
-                                textStyle: TextStyle(
-                                    color: _baseColor,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                          ClipRRect(
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(12.0),
-                            ),
-                            child: Container(
-                              padding: EdgeInsets.all((width * 0.04)),
-                              height: width / 2.5,
-                              width: width / 1.19,
-                              color: baseColor12,
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                        horizontal: (0.05)),
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 5),
-                                    decoration: BoxDecoration(
-                                        color: _baseColor,
-                                        borderRadius:
-                                            BorderRadius.circular(14)),
-                                    child: DropdownButton(
-                                      underline: Container(
-                                        height: 0,
-                                      ),
-                                      hint: Text(
-                                        "Select Music",
-                                        style: TextStyle(color: bgColor),
-                                      ),
-                                      isExpanded: true,
-                                      style: GoogleFonts.inter(
-                                          textStyle: TextStyle(
-                                              color: bgColor, fontSize: 16)),
-                                      items: options
-                                          .where(
-                                              (value) => value.contains('.mp3'))
-                                          .map((value) {
-                                        return DropdownMenuItem(
-                                            value: value.trim(),
-                                            child: Text(value.trim()));
-                                      }).toList(),
-                                      onChanged: (value) => setState(() {
-                                        selectedValue = value;
-                                      }),
-                                      icon: Icon(Icons.arrow_drop_down_rounded),
-                                      iconEnabledColor: bgColor,
-                                      iconSize: 42,
-                                      dropdownColor: _baseColor,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        height: (height * 0.06),
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: _baseColor,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(15)),
-                                          ),
-                                          onPressed: () {
-                                            writeData('R\n');
-                                            setState(() {
-                                              retry = !retry;
-                                            });
-                                          },
-                                          child: Icon(
-                                            Icons.repeat_one_rounded,
-                                            color: retry ? powerOn : bgColor,
-                                            size: (width * 0.08),
-                                          ),
-                                        ),
-                                      ),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          IconButton(
-                                              color: _baseColor,
-                                              iconSize: width * 0.1,
-                                              onPressed: () {
-                                                writeData('P\n');
-                                              },
-                                              icon: Icon(
-                                                  Icons.skip_previous_rounded)),
-                                          IconButton(
-                                            color: _baseColor,
-                                            iconSize: width * 0.1,
-                                            icon: play
-                                                ? Icon(Icons.stop_rounded)
-                                                : Icon(
-                                                    Icons.play_arrow_rounded),
-                                            onPressed: playPaused,
-                                          ),
-                                          IconButton(
-                                              color: _baseColor,
-                                              iconSize: width * 0.1,
-                                              onPressed: () {
-                                                writeData('N\n');
-                                              },
-                                              icon:
-                                                  Icon(Icons.skip_next_rounded))
-                                        ],
-                                      ),
-                                      Container(
-                                        height: (height * 0.06),
-                                        width: (height * 0.07),
-                                        child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: _baseColor,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(15)),
-                                          ),
-                                          onPressed: showAlertDelete,
-                                          child: Icon(
-                                            Icons.send_rounded,
-                                            color: bgColor,
-                                            size: (width * 0.06),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ),
-                            ),
-                          )
-                        ])),
-                Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Container(
-                          height: (height * 0.065),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _baseColor,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15)),
-                            ),
-                            onPressed: () {
-                              displayInput(context);
-                            },
-                            child: Icon(
-                              Icons.delete,
-                              color: redColor,
-                              size: (width * 0.08),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          height: (height * 0.065),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _baseColor,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15)),
-                            ),
-                            onPressed: () {
-                              displayInstall(context);
-                            },
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.upload, color: bgColor),
-                                Text(
-                                  "Upload New Song",
-                                  style: GoogleFonts.inter(
-                                      textStyle: TextStyle(
-                                          color: bgColor,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                            ],
+                          )),
                     ),
                   ),
+                ))
+          ],
+        ),
+      ),
+    );
+  }
+
+  SizedBox buttonRepeat(double width) {
+    return SizedBox(
+      width: width / 4,
+      height: width / 5,
+      child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16), // <-- Radius
+            ),
+            primary: base,
+          ),
+          onPressed: (() {}),
+          child: Container(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                const Icon(
+                  Icons.repeat_rounded,
+                  size: 32,
+                ),
+                Text(
+                  "Repeat",
+                  style: GoogleFonts.inter(
+                      color: bg, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ],
+            ),
+          )),
+    );
+  }
+
+  Card cardVolume(double width) => Card(
+        color: disable,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 10,
+        child: Container(
+          width: width,
+          child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Volume",
+                    style: GoogleFonts.inter(
+                        color: base, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  Slider(
+                      min: 0,
+                      max: 1.0,
+                      divisions: 100,
+                      activeColor: base,
+                      inactiveColor: bg,
+                      value: sliderValue,
+                      onChanged: (value) {
+                        setState(() {
+                          value = sliderValue;
+                        });
+                      }),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                          onPressed: () {},
+                          icon: Icon(
+                            Icons.add_circle_rounded,
+                            size: 40,
+                            color: base,
+                          )),
+                      IconButton(
+                          onPressed: () {},
+                          icon: Icon(
+                            Icons.remove_circle_rounded,
+                            size: 40,
+                            color: base,
+                          ))
+                    ],
+                  ),
+                ],
+              )),
+        ),
+      );
+
+  Card cardPlayMusic(double width) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 10,
+      child: AnimatedContainer(
+        decoration: BoxDecoration(
+            color: switchStatusPlay ? base : disable,
+            borderRadius: const BorderRadius.all(Radius.circular(20))),
+        duration: const Duration(milliseconds: 400),
+        child: SizedBox(
+          width: width / 2.3,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16),
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    Icons.music_note,
+                    size: width / 4.6,
+                    color: switchStatusPlay ? bg : base,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Play Music",
+                        style: GoogleFonts.inter(
+                            color: switchStatusPlay ? bg : base,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                      ),
+                      FlutterSwitch(
+                        activeToggleColor: base,
+                        toggleColor: disable,
+                        activeColor: disable,
+                        inactiveColor: bg,
+                        width: width / 8,
+                        height: width * 0.07,
+                        value: switchStatusPlay,
+                        onToggle: (value) {
+                          setState(() {
+                            switchStatusPlay = value;
+                            switchStatus = false;
+                          });
+                        },
+                      )
+                    ],
+                  )
+                ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Card cardNoise(double width) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      elevation: 10,
+      child: AnimatedContainer(
+        decoration: BoxDecoration(
+            color: switchStatus ? base : disable,
+            borderRadius: BorderRadius.all(Radius.circular(20))),
+        duration: const Duration(milliseconds: 400),
+        child: SizedBox(
+          width: width / 2.3,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16),
+            child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Icon(
+                    Icons.multitrack_audio_rounded,
+                    size: width / 4.6,
+                    color: switchStatus ? bg : base,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Noise",
+                        style: GoogleFonts.inter(
+                            color: switchStatus ? bg : base,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                      ),
+                      FlutterSwitch(
+                        activeToggleColor: base,
+                        toggleColor: disable,
+                        activeColor: disable,
+                        inactiveColor: bg,
+                        width: width / 8,
+                        height: width * 0.07,
+                        value: switchStatus,
+                        onToggle: (value) {
+                          setState(() {
+                            switchStatus = value;
+                            switchStatusPlay = false;
+                          });
+                        },
+                      )
+                    ],
+                  )
+                ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  AppBar appbarContent(BuildContext context, double height, double width) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pop(context),
+      ),
+      toolbarHeight: (height * 0.1),
+      backgroundColor: base,
+      title: const Text('Esp_device_1'),
+      actions: <Widget>[
+        IconButton(
+          color: bg,
+          icon: const Icon(Icons.power_settings_new),
+          iconSize: (width * 0.1),
+          tooltip: "On/Off",
+          onPressed: () {
+            // setState(() {
+            //   power = !power;
+            // });
+          },
+        ),
+        IconButton(
+            icon: Icon(Icons.lightbulb),
+            color: bg,
+            iconSize: (width * 0.1),
+            tooltip: "Save Todo and Retrun to List",
+            onPressed: () {
+              //lampStats
+            }),
+      ],
+    );
+  }
+}
+
+class songList extends StatelessWidget {
+  const songList({
+    Key? key,
+    required this.width,
+  }) : super(key: key);
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        print("dadc");
+      },
+      child: SizedBox(
+        width: width,
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+                    16), // <-- Radius
+          ),
+          color: base,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(
+                    horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment:
+                  MainAxisAlignment
+                      .spaceBetween,
+              children: [
+                Text(
+                  "Song 1",
+                  style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.bold,
+                      color: disable),
+                ),
+                Icon(
+                  Icons.play_arrow_rounded,
+                  size: width * 0.1,
+                  color: disable ,
                 )
               ],
-            )),
-      );
-    });
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

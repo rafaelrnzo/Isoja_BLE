@@ -39,6 +39,9 @@ dependencies:
   google_fonts: ^3.0.1
   badges: ^2.0.3
   flutter_blue: ^0.8.0
+  lite_rolling_switch: ^1.0.0
+  flutter_switch: ^0.3.2
+  carousel_slider: ^4.2.1
 
 dev_dependencies:
   flutter_test:
