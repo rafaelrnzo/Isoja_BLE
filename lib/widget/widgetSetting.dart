@@ -1,13 +1,16 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_blue/flutter_blue.dart';
 import 'package:flutter_isoja/global/color.dart';
-import 'package:flutter_isoja/page/settingPage.dart';
+import 'package:flutter_isoja/page/storagePage.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class buttonUploadd extends StatelessWidget {
+  final BluetoothDevice device;
+
   const buttonUploadd({
     Key? key,
     required this.width,
+    required this.device,
   }) : super(key: key);
 
   final double width;
@@ -24,7 +27,15 @@ class buttonUploadd extends StatelessWidget {
             ),
             primary: base,
           ),
-          onPressed: (() {}),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => StoragePage(
+                        device: device,
+                      )),
+            );
+          },
           child: Container(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -46,9 +57,13 @@ class buttonUploadd extends StatelessWidget {
 }
 
 class buttonDelete extends StatelessWidget {
-  const buttonDelete({
+  final BluetoothDevice device;
+  final VoidCallback displayInput;
+  buttonDelete({
     Key? key,
     required this.width,
+    required this.device, 
+    required this.displayInput,
   }) : super(key: key);
 
   final double width;
@@ -65,7 +80,9 @@ class buttonDelete extends StatelessWidget {
             ),
             primary: base,
           ),
-          onPressed: (() {}),
+          onPressed: () {
+            displayInput();
+          },
           child: Container(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -82,6 +99,54 @@ class buttonDelete extends StatelessWidget {
               ],
             ),
           )),
+    );
+  }
+}
+
+
+class songList extends StatelessWidget {
+  const songList({
+    Key? key,
+    required this.width,
+  }) : super(key: key);
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        print("dadc");
+      },
+      child: SizedBox(
+        width: width,
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16), // <-- Radius
+          ),
+          color: base,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Song 1",
+                  style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: disable),
+                ),
+                Icon(
+                  Icons.play_arrow_rounded,
+                  size: width * 0.1,
+                  color: disable,
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

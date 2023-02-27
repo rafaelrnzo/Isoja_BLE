@@ -1,27 +1,55 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/widgets/container.dart';
-import 'package:flutter/src/widgets/framework.dart';
+import 'package:flutter_blue/flutter_blue.dart';
 import 'package:flutter_isoja/global/color.dart';
 import 'package:flutter_isoja/widget/widgetSetting.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lite_rolling_switch/lite_rolling_switch.dart';
 
 class Setting extends StatefulWidget {
-  const Setting({super.key});
+  final BluetoothDevice device;
+  const Setting({super.key, required this.device});
 
   @override
   State<Setting> createState() => _SettingState();
 }
 
+//late
+late BluetoothCharacteristic targetChar;
+TextEditingController valueController = TextEditingController();
+final CarouselController carouselController = CarouselController();
+
+//string
+String receive = '';
+String value = '';
+String jsonString = '';
+String? selectedValue;
+
+//list
+List<String> receiving = [];
+
 //! boolean
-bool switchStatus = false;
-bool switchStatusPlay = false;
+bool power = false;
+bool lamp = false;
+bool music = false;
+bool stream = false;
+bool sliderEnable = false;
+bool retry = false;
 
 //!double
 double sliderValue = 0.0;
+double counter = 0;
+double counter2 = 0;
+
+//time
+Timer? timer;
+
+//int
+int count = 0;
 
 final List<String> imageList = [
   "https://www.setaswall.com/wp-content/uploads/2018/08/Spiderman-Wallpaper-76-1280x720.jpg",
@@ -34,12 +62,206 @@ final List<String> imageList = [
 //!Color Pallate Massbro
 class _SettingState extends State<Setting> {
   @override
+  void initState() {
+    discoverTes();
+    super.initState();
+  }
+
+  discoverTes() async {
+    List<BluetoothService> services = await widget.device.discoverServices();
+    services.forEach((service) {
+      if (service.uuid.toString() == service.uuid.toString()) {
+        service.characteristics.forEach((char) async {
+          if (char.uuid.toString() == char.uuid.toString()) {
+            targetChar = char;
+            setState(() {});
+            char.value.listen((value) {
+              String dat = utf8.decode(value);
+              if (dat.endsWith('.mp3') ||
+                  dat.endsWith('.aac') ||
+                  dat.endsWith('.mpeg') ||
+                  dat.endsWith('.wav')) {
+                setState(() {
+                  receiving.add(dat);
+                  if (receiving.length > 3) {
+                    receiving.removeAt(0);
+                  }
+                });
+              }
+            });
+            setState(() {});
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> displayInput(BuildContext context) async {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Write title'),
+            content: TextField(
+              onChanged: (value) {
+                setState(() {
+                  value = jsonString.trim();
+                });
+              },
+              controller: valueController,
+              decoration: const InputDecoration(hintText: "title"),
+            ),
+            actions: <Widget>[
+              ElevatedButton(child: const Text('OK'), onPressed: sendJsonToEsp),
+            ],
+          );
+        });
+  }
+
+  void sendJsonToEsp() async {
+    value = valueController.text;
+    convertInputToJson();
+    Navigator.pop(context);
+    writeData('8');
+    await Future.delayed(const Duration(seconds: 3));
+    sendJsonString(jsonString);
+    valueController.clear();
+  }
+
+  Future<void> sendJsonString(String jsonString) async {
+    Uint8List json = utf8.encode(jsonString) as Uint8List;
+    targetChar.write(json);
+  }
+
+  void convertInputToJson() {
+    value = value.replaceAll(RegExp(r'\s'), "");
+    jsonString = '{"DLT":"$value"}';
+  }
+
+  void startRead() {
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      receiveData();
+      setState(() {
+        count++;
+        if (count >= 1) {
+          stopingTimer();
+        }
+      });
+    });
+  }
+
+  void stopingTimer() {
+    timer?.cancel();
+  }
+
+  void openLoading(BuildContext context, [bool mounted = true]) async {
+    if (stream || music) {
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) {
+            return Dialog(
+              // The background color
+              backgroundColor: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    // The loading indicator
+                    CircularProgressIndicator(),
+                    SizedBox(
+                      height: 15,
+                    ),
+                    // Some text
+                    Text('Loading...')
+                  ],
+                ),
+              ),
+            );
+          });
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    }
+  }
+
+  void addCounter(String pluses) {
+    if (counter + 0.1 <= 1.0) {
+      setState(() {
+        counter += 0.1;
+      });
+    }
+    Uint8List plus = utf8.encode(pluses) as Uint8List;
+    targetChar.write(plus, withoutResponse: true);
+  }
+
+  void subtractCounter(String mineses) {
+    if (counter - 0.1 >= 0.0) {
+      setState(() {
+        counter -= 0.1;
+      });
+    }
+    Uint8List mines = utf8.encode(mineses) as Uint8List;
+    targetChar.write(mines, withoutResponse: true);
+  }
+
+  writeData(String data) {
+    try {
+      List<int> bytes = utf8.encode(data);
+      targetChar.write(bytes, withoutResponse: true);
+      setState(() {});
+    } catch (e) {
+      debugPrint('$e');
+    }
+  }
+
+  void lampStats() {
+    if (lamp == true) {
+      writeData('b');
+    } else {
+      writeData('a\n');
+    }
+    setState(() {
+      lamp = !lamp;
+    });
+    debugPrint('$lamp');
+  }
+
+  Future<void> sendOnMessageToBluetooth(String message) async {
+    writeData('8');
+    await Future.delayed(const Duration(seconds: 3));
+    List<int> data = utf8.encode(message);
+    targetChar.write(data, withoutResponse: true);
+  }
+
+  sendOffMessage(String message) async {
+    List<int> data = utf8.encode(message);
+    targetChar.write(data, withoutResponse: true);
+  }
+
+  receiveData() async {
+    try {
+      List<int> value = await targetChar.read();
+      receive = utf8.decode(value).trim();
+      setState(() {});
+    } catch (e) {
+      debugPrint('$e');
+    }
+  }
+
+  sendConvert() {
+    List<int> json = utf8.encode('/${selectedValue?.trim()}');
+    targetChar.write(json);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: bg,
-      appBar: appbarContent(context, height, width),
+      appBar: appbarContent(context, height, width, lampStats),
       // ignore: avoid_unnecessary_containers
       body: Container(
         margin: const EdgeInsets.all(16),
@@ -54,23 +276,41 @@ class _SettingState extends State<Setting> {
                     InkWell(
                         onTap: () {
                           setState(() {
-                            switchStatus = !switchStatus;
-                            switchStatusPlay = false;
+                            stream = !stream;
+                            // sliderEnable = false;
+                            music = false;
                           });
+                          openLoading(context);
+                          if (stream == true) {
+                            sendOnMessageToBluetooth('o\n');
+                          } else if (stream == false) {
+                            writeData('8\n');
+                          }
                         },
                         child: cardNoise(width)),
                     InkWell(
                         onTap: () {
                           setState(() {
-                            switchStatusPlay = !switchStatusPlay;
-                            switchStatus = false;
+                            music = !music;
+                            // sliderEnable = false;
+                            stream = false;
                           });
+                          openLoading(context);
+                          if (music == true) {
+                            // sendOnMessageToBluetooth('1\n').then((_) {
+                            // });
+                            startRead();
+                          } else if (music == false) {
+                            sendOffMessage('5\n').then((_) {
+                              stopingTimer();
+                            });
+                          }
                         },
                         child: cardPlayMusic(width)),
                   ],
                 )),
-            const Divider(
-              height: 16,
+            Divider(
+              height: height / 45,
               color: Colors.transparent,
             ),
             Expanded(
@@ -78,8 +318,8 @@ class _SettingState extends State<Setting> {
                 child: Container(
                   child: cardVolume(width),
                 )),
-            const Divider(
-              height: 30,
+            Divider(
+              height: height / 50,
               color: Colors.transparent,
             ),
             Expanded(
@@ -90,8 +330,17 @@ class _SettingState extends State<Setting> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       buttonRepeat(width),
-                      buttonUploadd(width: width),
-                      buttonDelete(width: width),
+                      buttonUploadd(
+                        width: width,
+                        device: widget.device,
+                      ),
+                      buttonDelete(
+                        width: width,
+                        device: widget.device,
+                        displayInput: () {
+                          displayInput(context);
+                        },
+                      ),
                     ],
                   ),
                 )),
@@ -118,23 +367,73 @@ class _SettingState extends State<Setting> {
                             children: [
                               Expanded(
                                 flex: 2,
-                                child: SizedBox(
-                                  width: width,
-                                  height: width / 5,
-                                  child: CarouselSlider(
-                                    options: CarouselOptions(
-                                      enlargeCenterPage: true,
-                                      enableInfiniteScroll: false,
-                                      autoPlay: false,
-                                    ),
-                                    items: <Widget>[
-                                      songList(width: width),
-                                      songList(width: width),
-                                      songList(width: width),
-                                      
-                                    ],
-                                  ),
-                                ),
+                                child: receiving.isNotEmpty
+                                    ? SizedBox(
+                                        width: width,
+                                        child: Card(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                                16), // <-- Radius
+                                          ),
+                                          color: base,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16.0),
+                                            child: CarouselSlider.builder(
+                                              itemCount: receiving.length,
+                                              carouselController:
+                                                  carouselController,
+                                              itemBuilder:
+                                                  (context, index, realindex) {
+                                                return Padding(
+                                                  padding: const EdgeInsets
+                                                          .symmetric(
+                                                      horizontal: 16.0),
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        receiving[index],
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: disable),
+                                                      ),
+                                                      Icon(
+                                                        Icons
+                                                            .play_arrow_rounded,
+                                                        size: width * 0.1,
+                                                        color: disable,
+                                                      )
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                              options: CarouselOptions(
+                                                  height: 400.0,
+                                                  enableInfiniteScroll: false,
+                                                  enlargeCenterPage: true,
+                                                  autoPlay: false,
+                                                  initialPage: 1,
+                                                  onPageChanged:
+                                                      (index, reason) {
+                                                    setState(() {
+                                                      selectedValue =
+                                                          receiving[index];
+                                                    });
+                                                  }),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text('tidak ada data'),
+                                      ),
                               ),
                               Expanded(
                                 flex: 3,
@@ -148,7 +447,12 @@ class _SettingState extends State<Setting> {
                                       ),
                                       child: Icon(Icons.skip_previous,
                                           size: width * 0.15, color: base),
-                                      onTap: () {},
+                                      onTap: () {
+                                        carouselController.previousPage(
+                                            duration:
+                                                Duration(milliseconds: 300),
+                                            curve: Curves.linear);
+                                      },
                                     ),
                                     InkWell(
                                       borderRadius: const BorderRadius.all(
@@ -158,7 +462,9 @@ class _SettingState extends State<Setting> {
                                           Icons.play_circle_fill_rounded,
                                           size: width * 0.18,
                                           color: base),
-                                      onTap: () {},
+                                      onTap: () {
+                                        sendConvert();
+                                      },
                                     ),
                                     InkWell(
                                       borderRadius: const BorderRadius.all(
@@ -166,7 +472,12 @@ class _SettingState extends State<Setting> {
                                       ),
                                       child: Icon(Icons.skip_next,
                                           size: width * 0.15, color: base),
-                                      onTap: () {},
+                                      onTap: () {
+                                        carouselController.nextPage(
+                                            duration:
+                                                Duration(milliseconds: 300),
+                                            curve: Curves.linear);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -193,14 +504,20 @@ class _SettingState extends State<Setting> {
             ),
             primary: base,
           ),
-          onPressed: (() {}),
+          onPressed: () {
+            writeData('r\n');
+            setState(() {
+              retry = !retry;
+            });
+          },
           child: Container(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                const Icon(
+                Icon(
                   Icons.repeat_rounded,
                   size: 32,
+                  color: retry ? powerOn : fieldBgColor,
                 ),
                 Text(
                   "Repeat",
@@ -237,29 +554,38 @@ class _SettingState extends State<Setting> {
                       divisions: 100,
                       activeColor: base,
                       inactiveColor: bg,
-                      value: sliderValue,
+                      value: counter,
                       onChanged: (value) {
                         setState(() {
-                          value = sliderValue;
+                          value = counter;
                         });
                       }),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      IconButton(
-                          onPressed: () {},
-                          icon: Icon(
-                            Icons.add_circle_rounded,
-                            size: 40,
-                            color: base,
-                          )),
-                      IconButton(
-                          onPressed: () {},
-                          icon: Icon(
-                            Icons.remove_circle_rounded,
-                            size: 40,
-                            color: base,
-                          ))
+                      InkWell(
+                        onTap: () {
+                          stream || music
+                              ? addCounter(counter.toStringAsFixed(1))
+                              : null;
+                        },
+                        child: Icon(
+                          Icons.add_circle,
+                          size: 33.5,
+                        ),
+                      ),
+                      VerticalDivider(),
+                      InkWell(
+                        onTap: () {
+                          stream || music
+                              ? subtractCounter(counter.toStringAsFixed(1))
+                              : null;
+                        },
+                        child: Icon(
+                          Icons.remove_circle,
+                          size: 33.5,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -275,7 +601,7 @@ class _SettingState extends State<Setting> {
       elevation: 10,
       child: AnimatedContainer(
         decoration: BoxDecoration(
-            color: switchStatusPlay ? base : disable,
+            color: music ? base : disable,
             borderRadius: const BorderRadius.all(Radius.circular(20))),
         duration: const Duration(milliseconds: 400),
         child: SizedBox(
@@ -288,7 +614,7 @@ class _SettingState extends State<Setting> {
                   Icon(
                     Icons.music_note,
                     size: width / 4.6,
-                    color: switchStatusPlay ? bg : base,
+                    color: music ? bg : base,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -297,7 +623,7 @@ class _SettingState extends State<Setting> {
                       Text(
                         "Play Music",
                         style: GoogleFonts.inter(
-                            color: switchStatusPlay ? bg : base,
+                            color: music ? bg : base,
                             fontWeight: FontWeight.bold,
                             fontSize: 16),
                       ),
@@ -308,12 +634,22 @@ class _SettingState extends State<Setting> {
                         inactiveColor: bg,
                         width: width / 8,
                         height: width * 0.07,
-                        value: switchStatusPlay,
+                        value: music,
                         onToggle: (value) {
                           setState(() {
-                            switchStatusPlay = value;
-                            switchStatus = false;
+                            music = value;
+                            stream = false;
                           });
+                          openLoading(context);
+                          if (music == true) {
+                            sendOnMessageToBluetooth('1\n').then((_) {
+                              startRead();
+                            });
+                          } else if (music == false) {
+                            sendOffMessage('5\n').then((_) {
+                              stopingTimer();
+                            });
+                          }
                         },
                       )
                     ],
@@ -333,11 +669,11 @@ class _SettingState extends State<Setting> {
       elevation: 10,
       child: AnimatedContainer(
         decoration: BoxDecoration(
-            color: switchStatus ? base : disable,
+            color: stream ? base : disable,
             borderRadius: BorderRadius.all(Radius.circular(20))),
         duration: const Duration(milliseconds: 400),
         child: SizedBox(
-          width: width / 2.3,
+          width: width / 2.4,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16),
             child: Column(
@@ -346,16 +682,16 @@ class _SettingState extends State<Setting> {
                   Icon(
                     Icons.multitrack_audio_rounded,
                     size: width / 4.6,
-                    color: switchStatus ? bg : base,
+                    color: stream ? bg : base,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        "Noise",
+                        "Stream",
                         style: GoogleFonts.inter(
-                            color: switchStatus ? bg : base,
+                            color: stream ? bg : base,
                             fontWeight: FontWeight.bold,
                             fontSize: 16),
                       ),
@@ -366,12 +702,18 @@ class _SettingState extends State<Setting> {
                         inactiveColor: bg,
                         width: width / 8,
                         height: width * 0.07,
-                        value: switchStatus,
+                        value: stream,
                         onToggle: (value) {
                           setState(() {
-                            switchStatus = value;
-                            switchStatusPlay = false;
+                            stream = value;
+                            music = false;
                           });
+                          openLoading(context);
+                          if (stream == true) {
+                            sendOnMessageToBluetooth('o\n');
+                          } else if (stream == false) {
+                            writeData('8\n');
+                          }
                         },
                       )
                     ],
@@ -383,7 +725,8 @@ class _SettingState extends State<Setting> {
     );
   }
 
-  AppBar appbarContent(BuildContext context, double height, double width) {
+  AppBar appbarContent(
+      BuildContext context, double height, double width, void lampStats()) {
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
@@ -391,82 +734,29 @@ class _SettingState extends State<Setting> {
       ),
       toolbarHeight: (height * 0.1),
       backgroundColor: base,
-      title: const Text('Esp_device_1'),
+      title: Text(widget.device.name),
       actions: <Widget>[
         IconButton(
-          color: bg,
+          color: power ? powerOn : disableBaseColor,
           icon: const Icon(Icons.power_settings_new),
           iconSize: (width * 0.1),
-          tooltip: "On/Off",
           onPressed: () {
-            // setState(() {
-            //   power = !power;
-            // });
+            if (power == true) {
+              sendOffMessage('off');
+            } else {
+              sendOnMessageToBluetooth('on');
+            }
+            setState(() {
+              power = !power;
+            });
           },
         ),
         IconButton(
-            icon: Icon(Icons.lightbulb),
-            color: bg,
+            icon: const Icon(Icons.lightbulb),
+            color: lamp ? lampOn : fieldBgColor,
             iconSize: (width * 0.1),
-            tooltip: "Save Todo and Retrun to List",
-            onPressed: () {
-              //lampStats
-            }),
+            onPressed: lampStats),
       ],
-    );
-  }
-}
-
-class songList extends StatelessWidget {
-  const songList({
-    Key? key,
-    required this.width,
-  }) : super(key: key);
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        print("dadc");
-      },
-      child: SizedBox(
-        width: width,
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(
-                    16), // <-- Radius
-          ),
-          color: base,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(
-                    horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment
-                      .spaceBetween,
-              children: [
-                Text(
-                  "Song 1",
-                  style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight:
-                          FontWeight.bold,
-                      color: disable),
-                ),
-                Icon(
-                  Icons.play_arrow_rounded,
-                  size: width * 0.1,
-                  color: disable ,
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
