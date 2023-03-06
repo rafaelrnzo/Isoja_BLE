@@ -1,4 +1,4 @@
-// ignore_for_file: camel_case_types, prefer_typing_uninitialized_variables
+// ignore_for_file: camel_case_types, prefer_typing_uninitialized_variables, prefer_const_constructors, use_build_context_synchronously
 
 import 'dart:convert';
 
@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:flutter_isoja/global/color.dart';
 import 'package:flutter_isoja/page/settingPage.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class FormPage extends StatefulWidget {
   final BluetoothDevice device;
@@ -123,10 +124,10 @@ class _FormPageState extends State<FormPage> {
             margin: const EdgeInsets.all(10),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: textColor,
+                backgroundColor: base,
               ),
               onPressed: sendWifi,
-              child: Center(child: const Text("Submit")),
+              child: Center(child:  Text("Submit",style: GoogleFonts.inter(fontSize: 20,fontWeight: FontWeight.bold,color: bg),)),
             ),
           ),
           body: SingleChildScrollView(
@@ -134,6 +135,7 @@ class _FormPageState extends State<FormPage> {
               padding: const EdgeInsets.all(10.0),
               child: Column(
                 children: [
+                  SizedBox(height: 20,),
                   Container(
                     decoration: BoxDecoration(
                         color: fieldBgColor,
@@ -153,7 +155,7 @@ class _FormPageState extends State<FormPage> {
                                 right: 10.0,
                               ),
                               decoration: BoxDecoration(
-                                  color: textColor,
+                                  color: base,
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(13))),
                               child: Icon(Icons.wifi,
@@ -183,7 +185,7 @@ class _FormPageState extends State<FormPage> {
                                 right: 10.0,
                               ),
                               decoration: BoxDecoration(
-                                  color: textColor,
+                                  color: base,
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(13))),
                               child: Icon(Icons.lock,
@@ -213,7 +215,7 @@ class _FormPageState extends State<FormPage> {
                                 right: 10.0,
                               ),
                               decoration: BoxDecoration(
-                                  color: textColor,
+                                  color: base,
                                   borderRadius:
                                       BorderRadius.all(Radius.circular(13))),
                               child: Icon(Icons.link,

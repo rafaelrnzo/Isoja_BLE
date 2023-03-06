@@ -1,7 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:flutter_isoja/global/color.dart';
 import 'package:flutter_isoja/page/connect.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,9 +44,8 @@ class BluetoothOffScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-      final Color _baseColor = Color.fromRGBO(42, 50, 75, 1);
     return Scaffold(
-      backgroundColor: _baseColor,
+      backgroundColor: base,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -52,14 +53,12 @@ class BluetoothOffScreen extends StatelessWidget {
             Icon(
               Icons.bluetooth_disabled,
               size: 200.0,
-              color: Colors.white54,
+              color: bg,
             ),
+            const SizedBox(height: 20,),
             Text(
               'Bluetooth Adapter is ${state != null ? state.toString().substring(15) : 'not available'}.',
-              style: Theme.of(context)
-                  .primaryTextTheme
-                  .subtitle1
-                  ?.copyWith(color: Colors.white),
+              style: GoogleFonts.inter(color: bg,fontSize: 20,fontWeight: FontWeight.bold),
             ),
           ],
         ),

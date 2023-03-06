@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'package:dotted_border/dotted_border.dart';
 import 'dart:io';
@@ -60,11 +62,11 @@ class _StoragePageState extends State<StoragePage> {
         context: context,
         builder: (context) {
           return AlertDialog(
-              title: Center(child: Text('Choose Method Delete')),
+              title: const Center(child: Text('Choose Method Delete')),
               content: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('lagu tidak bisa lebih dari 3'),
+                  const Text('lagu tidak bisa lebih dari 3'),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -89,7 +91,7 @@ class _StoragePageState extends State<StoragePage> {
                       ),
                     ],
                   ),
-                  Text(
+                  const Text(
                     '*fitur auto akan menghapus otomatis file terlama dalam database',
                     style: TextStyle(fontSize: 10),
                     textAlign: TextAlign.center,
@@ -104,7 +106,7 @@ class _StoragePageState extends State<StoragePage> {
         context: context,
         builder: (context) {
           return AlertDialog(
-              title: Center(child: Text('Choose Song To Delete')),
+              title: const Center(child: Text('Choose Song To Delete')),
               content: Container(
                 child: ListView.builder(
                   itemCount: audioList.length,
@@ -213,7 +215,7 @@ class _StoragePageState extends State<StoragePage> {
           appBar: AppBar(
             toolbarHeight: (height * 0.1),
             backgroundColor: base,
-            title: Text('Storage'),
+            title: const Text('Storage'),
             centerTitle: true,
             actions: [
               IconButton(
@@ -232,7 +234,7 @@ class _StoragePageState extends State<StoragePage> {
             margin: const EdgeInsets.all(10),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: textColor,
+                backgroundColor: base,
               ),
               onPressed: () {
                 Navigator.push(
@@ -243,7 +245,7 @@ class _StoragePageState extends State<StoragePage> {
                           )),
                 );
               },
-              child: Center(child: const Text("Download By Your Own Url")),
+              child: const Center(child: Text("Download By Your Own Url")),
             ),
           ),
           body: Container(
@@ -300,15 +302,16 @@ class _StoragePageState extends State<StoragePage> {
                                       children: [
                                         Icon(
                                           Icons.cloud_download,
+                                          color: base,
                                           size: width / 2.5,
                                         ),
-                                        Text('Upload Files Here'),
-                                        Text('File Must Be Formatted to mp3'),
+                                        const Text('Upload Files Here'),
+                                        const Text('File Must Be Formatted to mp3'),
                                       ],
                                     ),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: textColor,
+                                      backgroundColor: base,
                                     ),
                                     onPressed: () async {
                                       var myRef = firebaseStorage.ref();
@@ -340,7 +343,7 @@ class _StoragePageState extends State<StoragePage> {
                 Expanded(
                     flex: 3,
                     child: Container(
-                      margin: EdgeInsets.fromLTRB(15, 20, 15, 0),
+                      margin: const EdgeInsets.fromLTRB(15, 20, 15, 0),
                       child: Column(
                         children: [
                           Row(
@@ -356,9 +359,9 @@ class _StoragePageState extends State<StoragePage> {
                             color: bg,
                           ),
                           Card(
-                            color: textColor,
+                            color: base,
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
                               height: height / 13,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -374,7 +377,7 @@ class _StoragePageState extends State<StoragePage> {
                                                       text: snapshot.data
                                                           .toString()));
                                               ScaffoldMessenger.of(context)
-                                                  .showSnackBar(SnackBar(
+                                                  .showSnackBar(const SnackBar(
                                                       content:
                                                           Text("url copied")));
                                               setState(() {
@@ -394,12 +397,12 @@ class _StoragePageState extends State<StoragePage> {
                                               overflow: TextOverflow.ellipsis,
                                               maxLines: 1,
                                               style:
-                                                  TextStyle(color: Colors.blue),
+                                                  const TextStyle(color: Colors.blue),
                                             ),
                                           );
                                         } else {
                                           return IconButton(
-                                            color: Colors.white,
+                                            color: bg,
                                             onPressed: () {},
                                             icon: const Icon(
                                               Icons.copy,
